@@ -2,6 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { buildInterviewQuestionSet } from './question-bank.service.js';
 import { extractFactsFromText, scanResumeContent } from './resume-scanner.service.js';
 import { buildCompanyInterviewIntelligence } from './company-intelligence.service.js';
+import {
+  createAgentState,
+  evaluateAnswerWithEvaluatorAgent,
+  pushAgentDecision,
+  summarizeCoachingFromEvidence
+} from './interview-agents.service.js';
 import type {
   ConversationMessage,
   EvidenceBackedObservation,
@@ -41,7 +47,7 @@ function evaluateAnswer(question: InterviewQuestion, answer: string): {
   feedback: string;
   scoreBreakdown: ScoreBreakdown;
   missingTopics: string[];
-} {
+} { // eslint-disable-line @typescript-eslint/no-unused-vars
   const cleanedAnswer = answer.toLowerCase();
   const wordCount = cleanedAnswer.split(/\s+/).filter(Boolean).length;
 
@@ -101,7 +107,7 @@ function evaluateAnswer(question: InterviewQuestion, answer: string): {
   };
 }
 
-function buildTurnObservations(turn: InterviewSession['turns'][number]): EvidenceBackedObservation[] {
+function _buildTurnObservations(turn: InterviewSession['turns'][number]): EvidenceBackedObservation[] {
   if (!turn.answer || !turn.scoreBreakdown) {
     return [];
   }
@@ -147,11 +153,11 @@ function buildTurnObservations(turn: InterviewSession['turns'][number]): Evidenc
   return observations;
 }
 
-function summarizeEvidenceObservations(session: InterviewSession): {
+function _summarizeEvidenceObservations(session: InterviewSession): {
   observedLacking: EvidenceBackedObservation[];
   improvementPlan: EvidenceBackedObservation[];
 } {
-  const allObservations = session.turns.flatMap(buildTurnObservations);
+  const allObservations = session.turns.flatMap(_buildTurnObservations);
 
   if (allObservations.length === 0) {
     return {
@@ -373,6 +379,8 @@ export async function startInterview(payload: StartInterviewRequest): Promise<{
 
   const turns: InterviewTurn[] = [{ question: firstQuestion }];
 
+  const agentState = createAgentState();
+
   const session: InterviewSession = {
     sessionId: randomUUID(),
     candidateName: payload.candidateName,
@@ -388,12 +396,39 @@ export async function startInterview(payload: StartInterviewRequest): Promise<{
     questionPool,
     askedQuestionIds: [firstQuestion.id],
     conversation: [createMessage('interviewer', firstQuestion.prompt)],
+    agentState,
     intelligence,
     maxTurns: payload.level === 'senior' ? 10 : payload.level === 'mid' ? 8 : 6,
     turns,
     createdAt: new Date().toISOString(),
     status: 'active'
   };
+
+  pushAgentDecision(
+    session,
+    'resume-agent',
+    `Scanned resume: ${resumeHighlights.length} highlights, ${resumeFacts.length} facts extracted.`,
+    resumeAnalysis.coverage.coveragePercent / 100,
+    resumeHighlights.slice(0, 4)
+  );
+
+  pushAgentDecision(
+    session,
+    'interviewer-agent',
+    `Built question pool of ${questionPool.length} questions (${payload.role}/${payload.level}). Opening with: "${firstQuestion.category}".`,
+    0.92,
+    [firstQuestion.phase, firstQuestion.category, `difficulty ${firstQuestion.difficulty}`]
+  );
+
+  if (intelligence && intelligence.predictedQuestions.length > 0) {
+    pushAgentDecision(
+      session,
+      'orchestrator-agent',
+      `Company/interviewer intelligence merged: ${intelligence.predictedQuestions.length} predicted questions added.`,
+      intelligence.interviewerResearch?.confidence ?? 0.7,
+      intelligence.companySignals.slice(0, 3)
+    );
+  }
 
   if (session.turns[0]) {
     session.turns[0].askedAt = new Date().toISOString();
@@ -434,7 +469,20 @@ export function submitAnswer(input: {
     throw new Error('Interview already completed');
   }
 
-  const evaluation = evaluateAnswer(currentTurn.question, input.answer);
+  const evaluation = evaluateAnswerWithEvaluatorAgent(currentTurn.question, input.answer);
+
+  pushAgentDecision(
+    session,
+    'evaluator-agent',
+    `Scored ${evaluation.score}/10 for "${currentTurn.question.category}". Missing topics: ${evaluation.missingTopics.slice(0, 3).join(', ') || 'none'}.`,
+    evaluation.score / 10,
+    [
+      `Technical: ${evaluation.scoreBreakdown.technicalAccuracy}`,
+      `Communication: ${evaluation.scoreBreakdown.communication}`,
+      `Problem-solving: ${evaluation.scoreBreakdown.problemSolving}`,
+      `Impact: ${evaluation.scoreBreakdown.impactOrientation}`
+    ]
+  );
   currentTurn.answer = input.answer;
   currentTurn.score = evaluation.score;
   currentTurn.feedback = evaluation.feedback;
@@ -451,12 +499,26 @@ export function submitAnswer(input: {
   }
 
   let nextQuestion: InterviewQuestion | undefined;
+  let questionSource = 'question-bank';
 
   if (evaluation.score <= 4 || evaluation.score >= 9) {
-    const followUpQuestion = buildFollowUpQuestion(currentTurn.question, evaluation.score >= 9 ? 'deepen' : 'improve');
+    const direction = evaluation.score >= 9 ? 'deepen' : 'improve';
+    const followUpQuestion = buildFollowUpQuestion(currentTurn.question, direction);
     nextQuestion = followUpQuestion;
+    questionSource = `follow-up (${direction})`;
   } else {
     nextQuestion = pickNextQuestion(session);
+    questionSource = 'question-bank';
+  }
+
+  if (nextQuestion) {
+    pushAgentDecision(
+      session,
+      'interviewer-agent',
+      `Selected next question via ${questionSource}: "${nextQuestion.category}" (phase: ${nextQuestion.phase}, difficulty: ${nextQuestion.difficulty}).`,
+      0.88,
+      [nextQuestion.category, nextQuestion.phase]
+    );
   }
 
   if (nextQuestion) {
@@ -476,7 +538,23 @@ export function submitAnswer(input: {
 
     const averageScore = calculateAverageScore(session);
     const feedbackSummary = summarizeFeedback(session);
-    const evidenceSummary = summarizeEvidenceObservations(session);
+    const evidenceSummary = summarizeCoachingFromEvidence(session.turns);
+
+    pushAgentDecision(
+      session,
+      'coach-agent',
+      `Session complete. Average score: ${averageScore}/10. Coaching report generated with ${evidenceSummary.observedLacking.length} improvement areas.`,
+      Math.min(1, averageScore / 10),
+      feedbackSummary.strengths.slice(0, 3)
+    );
+
+    pushAgentDecision(
+      session,
+      'orchestrator-agent',
+      `Interview concluded after ${session.turns.length} turns. All agents have logged decisions.`,
+      0.99,
+      [`${session.turns.length} turns`, `${session.conversation.length} messages`]
+    );
 
     return {
       score: evaluation.score,
@@ -519,7 +597,7 @@ export function getInterviewResult(sessionId: string): InterviewResult {
   const answeredTurns = session.turns.filter((turn) => Boolean(turn.answer));
   const averageScore = calculateAverageScore(session);
   const feedbackSummary = summarizeFeedback(session);
-  const evidenceSummary = summarizeEvidenceObservations(session);
+  const evidenceSummary = summarizeCoachingFromEvidence(session.turns);
 
   return {
     averageScore,

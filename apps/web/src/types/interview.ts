@@ -1,3 +1,23 @@
+export type InterviewAgentName =
+  | 'resume-agent'
+  | 'interviewer-agent'
+  | 'evaluator-agent'
+  | 'coach-agent'
+  | 'orchestrator-agent';
+
+export interface AgentDecision {
+  agent: InterviewAgentName;
+  summary: string;
+  confidence: number;
+  evidence: string[];
+  timestamp: string;
+}
+
+export interface InterviewAgentState {
+  decisions: AgentDecision[];
+  lastUpdated: string;
+}
+
 export type InterviewRole = 'frontend' | 'backend' | 'fullstack' | 'data' | 'devops';
 export type InterviewLevel = 'junior' | 'mid' | 'senior';
 
@@ -82,6 +102,7 @@ export interface InterviewSession {
   conversation: ConversationMessage[];
   maxTurns: number;
   intelligence?: CompanyInterviewIntelligence;
+  agentState?: InterviewAgentState;
   turns: InterviewTurn[];
   createdAt: string;
   status: 'active' | 'completed' | 'terminated';

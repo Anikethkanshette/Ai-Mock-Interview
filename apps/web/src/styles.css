@@ -546,6 +546,111 @@ textarea:focus {
   border-color: rgba(159, 196, 255, 0.7);
 }
 
+/* ── Agent Panel ─────────────────────────────────────── */
+
+.agent-panel {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.agent-panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #d1dcfc;
+}
+
+.agent-panel-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c4b5fd;
+}
+
+.agent-panel-caret {
+  font-size: 0.7rem;
+  color: #7c6fcd;
+}
+
+.agent-decision-list {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.agent-decision {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-decision-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.28rem;
+}
+
+.agent-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #a78bfa;
+}
+
+.agent-confidence {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: #7c6fcd;
+  position: relative;
+  min-width: 3.5rem;
+}
+
+.agent-confidence-bar {
+  display: inline-block;
+  height: 4px;
+  max-width: 100%;
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.agent-summary {
+  font-size: 0.81rem;
+  color: #c4b5fd;
+  margin: 0 0 0.25rem;
+  line-height: 1.4;
+}
+
+.agent-evidence {
+  margin: 0;
+  padding-left: 0.9rem;
+}
+
+.agent-evidence li {
+  font-size: 0.75rem;
+  color: #9f7aea;
+  margin-bottom: 0.18rem;
+}
+
+.agent-resumeagent .agent-name  { color: #34d399; }
+.agent-intervieweragent .agent-name { color: #60a5fa; }
+.agent-evaluatoragent .agent-name { color: #f59e0b; }
+.agent-coachagent .agent-name { color: #f87171; }
+.agent-orchestratoragent .agent-name { color: #a78bfa; }
+
+
+
 .chat-feed {
   display: grid;
   gap: 0.45rem;

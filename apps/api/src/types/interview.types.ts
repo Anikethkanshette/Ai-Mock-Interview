@@ -3,6 +3,7 @@ export type InterviewLevel = 'junior' | 'mid' | 'senior';
 export type InterviewPhase = 'intro' | 'resume' | 'technical' | 'system' | 'behavioral' | 'follow-up';
 export type SessionStatus = 'active' | 'completed' | 'terminated';
 export type ConversationSpeaker = 'interviewer' | 'candidate';
+export type InterviewAgentName = 'resume-agent' | 'interviewer-agent' | 'evaluator-agent' | 'coach-agent' | 'orchestrator-agent';
 
 export interface StartInterviewRequest {
   candidateName: string;
@@ -69,6 +70,19 @@ export interface ConversationMessage {
   timestamp: string;
 }
 
+export interface AgentDecision {
+  agent: InterviewAgentName;
+  summary: string;
+  confidence: number;
+  evidence: string[];
+  timestamp: string;
+}
+
+export interface InterviewAgentState {
+  decisions: AgentDecision[];
+  lastUpdated: string;
+}
+
 export interface InterviewTurn {
   question: InterviewQuestion;
   answer?: string;
@@ -94,6 +108,7 @@ export interface InterviewSession {
   questionPool: InterviewQuestion[];
   askedQuestionIds: string[];
   conversation: ConversationMessage[];
+  agentState: InterviewAgentState;
   intelligence?: CompanyInterviewIntelligence;
   maxTurns: number;
   turns: InterviewTurn[];

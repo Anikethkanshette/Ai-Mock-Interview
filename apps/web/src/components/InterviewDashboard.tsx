@@ -14,8 +14,10 @@ import { logoutUser } from '../services/auth';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import type { UserProfile } from '../types/auth';
 import type {
+  AgentDecision,
   AnalyticsOverview,
   CompanyInterviewIntelligence,
+  InterviewAgentState,
   InterviewLevel,
   InterviewQuestion,
   InterviewResult,
@@ -68,6 +70,7 @@ export function InterviewDashboard(props: DashboardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isScanningResume, setIsScanningResume] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Configure your profile and launch interview mode.');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -448,6 +451,47 @@ export function InterviewDashboard(props: DashboardProps) {
                 <li>Known facts captured: {session.knownFacts.length}</li>
                 <li>Facts already covered: {session.coveredFacts.length}</li>
               </ul>
+            </div>
+          )}
+
+          {session?.agentState && session.agentState.decisions.length > 0 && (
+            <div className="knowledge-box agent-panel">
+              <button
+                className="agent-panel-toggle"
+                onClick={() => setAgentPanelOpen((prev) => !prev)}
+                type="button"
+              >
+                <span className="agent-panel-title">
+                  🤖 Agent Decisions ({session.agentState.decisions.length})
+                </span>
+                <span className="agent-panel-caret">{agentPanelOpen ? '▲' : '▼'}</span>
+              </button>
+              {agentPanelOpen && (
+                <ul className="agent-decision-list">
+                  {session.agentState.decisions.map((decision: AgentDecision, idx: number) => (
+                    <li key={`${decision.agent}-${idx}`} className={`agent-decision agent-${decision.agent}`}>
+                      <div className="agent-decision-header">
+                        <span className="agent-name">{decision.agent}</span>
+                        <span className="agent-confidence">
+                          <span
+                            className="agent-confidence-bar"
+                            style={{ width: `${Math.round(decision.confidence * 100)}%` }}
+                          />
+                          {Math.round(decision.confidence * 100)}%
+                        </span>
+                      </div>
+                      <p className="agent-summary">{decision.summary}</p>
+                      {decision.evidence.length > 0 && (
+                        <ul className="agent-evidence">
+                          {decision.evidence.map((item: string, eIdx: number) => (
+                            <li key={eIdx}>{item}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 

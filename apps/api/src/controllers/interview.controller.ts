@@ -71,6 +71,7 @@ export async function startInterviewController(req: Request, res: Response) {
     resumeHighlights: session.resumeHighlights,
     knownFacts: session.knownFacts,
     intelligence: session.intelligence,
+    agentState: session.agentState,
     currentQuestion
   });
 }

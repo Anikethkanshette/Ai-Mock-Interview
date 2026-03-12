@@ -32,6 +32,7 @@ interface StartInterviewResponse {
   resumeHighlights: string[];
   knownFacts: string[];
   intelligence?: CompanyInterviewIntelligence;
+  agentState?: import('../types/interview').InterviewAgentState;
   currentQuestion: InterviewQuestion;
 }
 
