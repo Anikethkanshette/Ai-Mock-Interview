@@ -1,0 +1,16 @@
+{
+  "name": "ai-mock-interview",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @aimi/web & npm run dev --workspace @aimi/api",
+    "dev:web": "npm run dev --workspace @aimi/web",
+    "dev:api": "npm run dev --workspace @aimi/api",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  }
+}
