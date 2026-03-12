@@ -1,110 +1,136 @@
-# AI Mock Interview Project
+# AI Mock Interview Platform
 
-Initial monorepo scaffold for an AI-powered mock interview platform.
+Production-style monorepo for a realistic AI interview simulator with **resume intelligence**, **live adaptive questioning**, **voice-assisted conversation**, and **evidence-based coaching**.
 
-## Project Structure
+## Why this project stands out
 
-- `apps/web`: Frontend app (React + Vite)
-- `apps/api`: Backend API (Express + TypeScript)
-- `packages/shared`: Shared types/constants used by web and api
-- `docs`: Architecture and product notes
-- `scripts`: Utility scripts for setup/deployment later
+- 🎯 **Real resume scanning** with section detection, role/level recommendation, coverage stats, and missing-signal analysis.
+- 🧠 **Live 1:1 interview flow** that remembers candidate facts and adapts the next question in real time.
+- 🛰️ **Evidence-backed interviewer/company intelligence** (with verification confidence and source links).
+- 📊 **No-fake feedback model**: weaknesses and improvement plans are generated only from observable answer scores.
+- ✨ **Animated premium UI experience**: ambient gradients, progress motion, chat-flow transitions, and polished dashboard cards.
 
-## Getting Started
+## Animated Product Experience
 
-1. Install dependencies from the repo root:
+The web app is designed to feel modern and interactive:
 
-   ```bash
-   npm install
-   ```
+- Animated ambient backgrounds for depth and focus
+- Dynamic interview progress bar during live rounds
+- Real-time chat transcript flow (AI interviewer ↔ candidate)
+- Voice input + speech output support for natural interview simulation
+- Professional visual hierarchy across landing, auth, profile, and dashboard
 
-2. Run frontend and backend in separate terminals:
+## Monorepo Structure
 
-   ```bash
-   npm run dev:web
-   npm run dev:api
-   ```
+- `apps/web` — React + Vite + TypeScript frontend
+- `apps/api` — Express + TypeScript backend
+- `packages/shared` — shared package space for reusable contracts
+- `docs` — architecture and design notes
 
-3. Check API health endpoint:
+## Quick Start
 
-   - `GET http://localhost:5000/api/health`
+1. Install dependencies:
 
-## Backend APIs (Implemented)
+    ```bash
+    npm install
+    ```
 
-### Start Interview
+2. Start frontend + backend:
 
-- `POST /api/interviews/start`
+    ```bash
+    npm run dev:web
+    npm run dev:api
+    ```
 
-Request body:
+    or run both from one command:
 
-```json
-{
-   "candidateName": "Aniketh",
-   "role": "backend",
-   "level": "mid",
-   "resumeText": "Backend engineer with Node.js, Express, PostgreSQL and AWS experience."
-}
-```
+    ```bash
+    npm run dev
+    ```
 
-Returns `sessionId`, extracted `resumeHighlights`, and first interviewer question.
+3. Build check:
 
-### Submit Answer
+    ```bash
+    npm run build
+    ```
 
-- `POST /api/interviews/:sessionId/answer`
+4. Health check:
 
-Request body:
+    - `GET http://localhost:5000/api/health`
 
-```json
-{
-   "answer": "Your answer to the current interviewer question"
-}
-```
+## Core Workflow
 
-Returns score, feedback, and next question (or final summary when completed).
+1. Candidate uploads/pastes resume
+2. API scans and extracts resume intelligence
+3. Candidate starts a role/level/company-targeted interview
+4. AI asks adaptive questions based on answers and known resume facts
+5. Session produces evidence-based strengths, lacking areas, and improvement plan
 
-### Session Details
+## API Reference
 
-- `GET /api/interviews/:sessionId`
+Base URL: `http://localhost:5000/api`
 
-Returns complete interview state with all questions and answers so far.
+### Resume & Intelligence
 
-### List Sessions
+- `POST /interviews/resume/scan`
+   - Supports text + file upload (`pdf`, `txt`, etc.)
+   - Returns: extracted text, highlights, facts, section mapping, coverage %, missing signals, recommended role/level
 
-- `GET /api/interviews`
-- Optional query params: `role`, `status`, `candidateName`
+- `POST /interviews/intelligence/predict`
+   - Predicts likely question themes using company/interviewer/role inputs
+   - Returns verification confidence and evidence links when available
 
-Returns interview history summaries for dashboard and filtering.
+### Interview Lifecycle
 
-### Interview Result
+- `POST /interviews/start`
+   - Starts a live session and returns first question + session intelligence
 
-- `GET /api/interviews/:sessionId/result`
+- `POST /interviews/:sessionId/answer`
+   - Scores answer and returns feedback + next question (or final summary)
 
-Returns aggregate stats including average score, total/answered questions, and completion status.
+- `GET /interviews/:sessionId`
+   - Full session snapshot (conversation, turns, facts, status)
 
-### Terminate Interview
+- `GET /interviews/:sessionId/result`
+   - Final aggregate result with evidence-based lacking/improvement lists
 
-- `POST /api/interviews/:sessionId/terminate`
+- `POST /interviews/:sessionId/terminate`
+   - Ends an active interview safely
 
-Marks an active interview as terminated and returns updated session summary.
+### Insights & History
 
-### Platform Analytics
+- `GET /interviews`
+   - Session summaries (supports `role`, `status`, `candidateName` filters)
 
-- `GET /api/interviews/analytics/overview`
+- `GET /interviews/analytics/overview`
+   - Platform metrics (total sessions, active/completed split, average score, role distribution)
 
-Returns platform-level metrics: total sessions, status split, average score, role distribution.
+## Current Capabilities
 
-## Current Interview Behavior
+- Role-based rounds: `frontend`, `backend`, `fullstack`, `data`, `devops`
+- Level-aware difficulty: `junior`, `mid`, `senior`
+- Phase-based interviews: `intro`, `resume`, `technical`, `system`, `behavioral`, `follow-up`
+- Rubric scoring:
+   - Technical Accuracy
+   - Communication
+   - Problem Solving
+   - Impact Orientation
+- Professional profile management from dashboard
+- Resume reality-check panel in user profile
 
-- Generates role-based technical questions for `frontend`, `backend`, `fullstack`, `data`, `devops`
-- Extracts resume highlights and asks resume-deep-dive questions
-- Uses phase-based interview rounds (`intro`, `resume`, `technical`, `system`, `behavioral`)
-- Evaluates answers with rubric scoring (technical accuracy, communication, problem-solving, impact)
-- Inserts adaptive follow-up probing questions for weak and exceptional answers
-- Produces strengths/improvement insights in result summary
+## Tech Stack
 
-## Suggested Next Steps
+- **Frontend:** React, Vite, TypeScript
+- **Backend:** Node.js, Express, TypeScript, Multer, pdf-parse
+- **Runtime Model:** In-memory session engine (current)
 
-- Add auth flow and user profiles
-- Integrate LLM provider for dynamic conversational follow-up
-- Persist sessions in database instead of in-memory storage
-- Add interview history dashboard
+## Roadmap
+
+- Database persistence for users and interview sessions
+- Provider-backed LLM orchestration for richer natural follow-ups
+- Replay mode with timeline visualization of answer quality over time
+- Optional downloadable PDF performance report
+
+---
+
+If you want, I can also add a **README hero image / GIF section** so the animated UI feel is visible directly on the repository landing page.
