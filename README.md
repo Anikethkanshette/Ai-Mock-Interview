@@ -181,8 +181,3 @@ Base URL: `http://localhost:5001/api`
 - Database persistence for users and interview sessions
 - Provider-backed LLM orchestration for richer natural follow-ups
 - Replay mode with timeline visualization of answer quality over time
-- Optional downloadable PDF performance report
-
----
-
-If you want, I can also add a **README hero image / GIF section** so the animated UI feel is visible directly on the repository landing page.
