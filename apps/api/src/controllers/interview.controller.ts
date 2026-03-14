@@ -129,7 +129,7 @@ export async function scanResumeController(req: Request, res: Response) {
   return res.status(200).json(scanResult);
 }
 
-export function submitAnswerController(req: Request, res: Response) {
+export async function submitAnswerController(req: Request, res: Response) {
   const sessionId = readSessionId(req.params.sessionId);
   const { answer } = req.body as { answer?: string };
 
@@ -142,7 +142,7 @@ export function submitAnswerController(req: Request, res: Response) {
   }
 
   try {
-    const response = submitAnswer({
+    const response = await submitAnswer({
       sessionId,
       answer
     });

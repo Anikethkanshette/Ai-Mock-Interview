@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { LayoutDashboard, UserCircle, LogOut, FileText, Activity, Target } from 'lucide-react';
 import { updateCurrentUserProfile } from '../services/auth';
 import type { UserProfile } from '../types/auth';
 import type { ResumeScanResult } from '../types/interview';
@@ -52,7 +53,7 @@ export function ProfilePage(props: ProfilePageProps) {
     setIsSaving(true);
 
     try {
-      const updated = updateCurrentUserProfile({
+      const updated = await updateCurrentUserProfile({
         fullName,
         headline,
         targetRole,
@@ -74,125 +75,174 @@ export function ProfilePage(props: ProfilePageProps) {
   }
 
   return (
-    <div className="app-shell">
-      <div className="ambient ambient-top" />
-      <div className="ambient ambient-bottom" />
-
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">Candidate Profile</p>
-          <h1>{props.user.fullName}</h1>
-          <p className="hero-copy">Keep your profile accurate so interview coaching reflects your real background.</p>
+    <div className="mi-dashboard-root">
+      <aside className="mi-sidebar">
+        <div className="mi-sidebar-brand">
+          <div className="mi-brand-icon">
+            <LayoutDashboard size={18} />
+          </div>
+          <div className="mi-brand-text">agentic interviewer</div>
         </div>
-
-        <div className="hero-actions">
-          <button className="btn btn-ghost" onClick={props.onBackToDashboard}>
-            Back to Dashboard
+        <div className="mi-sidebar-nav">
+          <p className="mi-nav-group-title">Account</p>
+          <button className="mi-nav-btn" type="button" onClick={props.onBackToDashboard}>
+            <UserCircle size={16} />
+            <span>Back to Dashboard</span>
           </button>
-          <button className="btn btn-danger" onClick={props.onLogout}>
-            Logout
+          <button className="mi-nav-btn" type="button" onClick={props.onLogout}>
+            <LogOut size={16} />
+            <span>Logout</span>
           </button>
         </div>
-      </header>
+        <div className="mi-sidebar-user">
+          <div className="stat-icon">
+            <span>{props.user.fullName.slice(0, 1).toUpperCase()}</span>
+          </div>
+          <div className="mi-user-details">
+            <span className="mi-user-name">{props.user.fullName}</span>
+            <span className="mi-user-plan">{props.user.email}</span>
+          </div>
+        </div>
+      </aside>
 
-      <main className="profile-layout">
-        <section className="card">
-          <h2>Professional Profile</h2>
-          <p className="subtle">Profile completeness: {completeness}%</p>
+      <div className="mi-main-canvas">
+        <header className="mi-top-header">
+          <div className="mi-header-breadcrumbs">
+            <span className="mi-crumb">Account</span>
+            <span className="mi-crumb">/</span>
+            <span className="mi-crumb active">Profile Studio</span>
+          </div>
+          <div className="mi-status-badge">
+            <span className="pulse-dot" />
+            <span>Profile completeness {completeness}%</span>
+          </div>
+        </header>
 
-          <form onSubmit={handleSave}>
-            <label>
-              Full Name
-              <input value={fullName} onChange={(event) => setFullName(event.target.value)} />
-            </label>
+        <main className="mi-content-area">
+          <div className="mi-bento-grid">
+            <div className="mi-bento-card col-span-2">
+              <div className="mi-card-header">
+                <div className="stat-icon blue">
+                  <UserCircle size={18} />
+                </div>
+                <div className="mi-card-title-group">
+                  <h3>Candidate Metadata</h3>
+                  <p>Keep your profile aligned with how the interview and resume engines see you.</p>
+                </div>
+              </div>
 
-            <label>
-              Headline
-              <input
-                value={headline}
-                onChange={(event) => setHeadline(event.target.value)}
-                placeholder="Senior Backend Engineer"
-              />
-            </label>
+              <form onSubmit={handleSave} className="mi-form-grid">
+                <div className="mi-input-wrap col-span-3">
+                  <label>Full Name</label>
+                  <input className="mi-input" value={fullName} onChange={(event) => setFullName(event.target.value)} />
+                </div>
 
-            <div className="form-grid profile-grid">
-              <label>
-                Target Role
-                <input value={targetRole} onChange={(event) => setTargetRole(event.target.value)} placeholder="Fullstack" />
-              </label>
+                <div className="mi-input-wrap col-span-3">
+                  <label>Headline</label>
+                  <input
+                    className="mi-input"
+                    value={headline}
+                    onChange={(event) => setHeadline(event.target.value)}
+                    placeholder="Senior Backend Engineer"
+                  />
+                </div>
 
-              <label>
-                Years of Experience
-                <input
-                  type="number"
-                  min={0}
-                  value={yearsExperience}
-                  onChange={(event) => setYearsExperience(event.target.value)}
-                  placeholder="5"
-                />
-              </label>
+                <div className="mi-input-wrap">
+                  <label>Target Role</label>
+                  <input
+                    className="mi-input"
+                    value={targetRole}
+                    onChange={(event) => setTargetRole(event.target.value)}
+                    placeholder="Fullstack"
+                  />
+                </div>
+
+                <div className="mi-input-wrap">
+                  <label>Years of Experience</label>
+                  <input
+                    className="mi-input"
+                    type="number"
+                    min={0}
+                    value={yearsExperience}
+                    onChange={(event) => setYearsExperience(event.target.value)}
+                    placeholder="5"
+                  />
+                </div>
+
+                <div className="mi-input-wrap col-span-3">
+                  <label>Primary Skills (comma-separated)</label>
+                  <input
+                    className="mi-input"
+                    value={skillsText}
+                    onChange={(event) => setSkillsText(event.target.value)}
+                    placeholder="React, Node.js, AWS"
+                  />
+                </div>
+
+                <div className="mi-input-wrap col-span-3">
+                  <label>Bio</label>
+                  <textarea
+                    className="mi-textarea"
+                    rows={5}
+                    value={bio}
+                    onChange={(event) => setBio(event.target.value)}
+                    placeholder="Write a concise summary of your experience, strengths, and impact."
+                  />
+                </div>
+
+                <div className="mi-input-wrap col-span-3">
+                  {statusMessage && <p className="status">{statusMessage}</p>}
+                  {errorMessage && <p className="error">{errorMessage}</p>}
+                  <button className="mi-btn primary" disabled={isSaving} type="submit">
+                    {isSaving ? 'Saving…' : 'Save Profile'}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <label>
-              Primary Skills (comma-separated)
-              <input
-                value={skillsText}
-                onChange={(event) => setSkillsText(event.target.value)}
-                placeholder="React, Node.js, AWS"
-              />
-            </label>
+            <div className="mi-bento-card col-span-1">
+              <div className="mi-card-header">
+                <div className="stat-icon green">
+                  <FileText size={18} />
+                </div>
+                <div className="mi-card-title-group">
+                  <h3>Resume Intelligence Readiness</h3>
+                  <p>Quick view of your latest scan and missing signals.</p>
+                </div>
+              </div>
 
-            <label>
-              Bio
-              <textarea
-                rows={5}
-                value={bio}
-                onChange={(event) => setBio(event.target.value)}
-                placeholder="Write a concise summary of your experience, strengths, and impact."
-              />
-            </label>
-
-            {statusMessage && <p className="status">{statusMessage}</p>}
-            {errorMessage && <p className="error">{errorMessage}</p>}
-
-            <button className="btn btn-primary" disabled={isSaving} type="submit">
-              {isSaving ? 'Saving...' : 'Save Profile'}
-            </button>
-          </form>
-        </section>
-
-        <section className="card">
-          <h2>Resume Reality Check</h2>
-          {props.latestResumeScan ? (
-            <>
-              <p className="subtle">
-                Coverage: {props.latestResumeScan.coverage.coveragePercent}% ({props.latestResumeScan.coverage.capturedLines}/
-                {props.latestResumeScan.coverage.totalLines} lines parsed)
-              </p>
-              <ul>
-                <li>Recommended track: {props.latestResumeScan.recommendedRole} / {props.latestResumeScan.recommendedLevel}</li>
-                <li>Strongest skills: {props.latestResumeScan.extractedProfile.strongestSkills.slice(0, 5).join(', ') || 'N/A'}</li>
-                <li>
-                  Quantified achievements detected: {props.latestResumeScan.extractedProfile.quantifiedAchievements.length}
-                </li>
-              </ul>
-
-              {props.latestResumeScan.missingSignals.length > 0 && (
+              {props.latestResumeScan ? (
                 <>
-                  <h3>Missing Signals</h3>
-                  <ul>
-                    {props.latestResumeScan.missingSignals.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
+                  <p className="card-sub">
+                    Coverage: {props.latestResumeScan.coverage.coveragePercent}% ({props.latestResumeScan.coverage.capturedLines}/
+                    {props.latestResumeScan.coverage.totalLines} lines parsed)
+                  </p>
+                  <div className="info-list">
+                    <p className="info-list-item">Recommended track: {props.latestResumeScan.recommendedRole} / {props.latestResumeScan.recommendedLevel}</p>
+                    <p className="info-list-item">Strongest skills: {props.latestResumeScan.extractedProfile.strongestSkills.slice(0, 5).join(', ') || 'N/A'}</p>
+                    <p className="info-list-item">Quantified achievements: {props.latestResumeScan.extractedProfile.quantifiedAchievements.length}</p>
+                    <p className="info-list-item">Highlights extracted: {props.latestResumeScan.highlights.length}</p>
+                    <p className="info-list-item">Facts extracted: {props.latestResumeScan.facts.length}</p>
+                  </div>
+
+                  {props.latestResumeScan.missingSignals.length > 0 && (
+                    <div style={{ marginTop: '0.7rem' }}>
+                      <p className="info-box-title">Missing Signals</p>
+                      <div className="info-list" style={{ marginTop: '.25rem' }}>
+                        {props.latestResumeScan.missingSignals.map((item) => (
+                          <p className="info-list-item" key={item}>{item}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
+              ) : (
+                <p className="dim">Scan a resume from the dashboard to see profile-backed validation here.</p>
               )}
-            </>
-          ) : (
-            <p className="subtle">Scan a resume from dashboard to see profile-backed validation here.</p>
-          )}
-        </section>
-      </main>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

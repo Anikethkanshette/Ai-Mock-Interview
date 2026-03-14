@@ -175,6 +175,8 @@ export interface InterviewResult {
   improvements: string[];
   observedLacking: EvidenceBackedObservation[];
   improvementPlan: EvidenceBackedObservation[];
+  /** Optional LLM-powered narrative summary for the whole session. */
+  llmSummary?: string;
 }
 
 export interface AnalyticsOverview {
@@ -184,4 +186,74 @@ export interface AnalyticsOverview {
   terminatedSessions: number;
   averageScoreAcrossSessions: number;
   roleDistribution: Record<string, number>;
+}
+
+export interface ResumeScoreBreakdown {
+  keywordAlignment: number;
+  experienceMatch: number;
+  impactEvidence: number;
+  structureQuality: number;
+}
+
+export interface ResumeScoreReport {
+  score: number;
+  breakdown: ResumeScoreBreakdown;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+}
+
+export interface AtsIssue {
+  severity: 'high' | 'medium' | 'low';
+  message: string;
+  suggestion: string;
+}
+
+export interface AtsCompatibilityReport {
+  passScore: number;
+  issues: AtsIssue[];
+  passLikely: boolean;
+}
+
+export interface JobMatchSuggestion {
+  title: string;
+  companyType: string;
+  matchScore: number;
+  reasons: string[];
+  missingSkills: string[];
+}
+
+export interface LinkedInOptimization {
+  headline: string;
+  about: string;
+  featuredBullets: string[];
+}
+
+export interface CoverLetterDraft {
+  greeting: string;
+  opening: string;
+  body: string[];
+  closing: string;
+}
+
+export interface AdvancedResumeInsights {
+  strongestNarrative: string;
+  quantifiedImpactSignals: string[];
+  roleReadinessSummary: string;
+  priorityActions: string[];
+}
+
+export interface ResumeImprovementTip {
+  title: string;
+  action: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface ResumeIntelligenceReport {
+  scoreReport: ResumeScoreReport;
+  atsReport: AtsCompatibilityReport;
+  jobMatches: JobMatchSuggestion[];
+  improvementTips: ResumeImprovementTip[];
+  linkedinOptimization: LinkedInOptimization;
+  coverLetterDraft: CoverLetterDraft;
+  advancedInsights: AdvancedResumeInsights;
 }

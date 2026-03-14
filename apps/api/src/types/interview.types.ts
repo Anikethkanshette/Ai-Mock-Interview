@@ -144,6 +144,8 @@ export interface InterviewResult {
   improvements: string[];
   observedLacking: EvidenceBackedObservation[];
   improvementPlan: EvidenceBackedObservation[];
+  /** Optional LLM-powered narrative summary for the whole session. */
+  llmSummary?: string;
 }
 
 export interface EvidenceBackedObservation {

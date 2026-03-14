@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthPage } from './components/AuthPage';
 import { InterviewDashboard } from './components/InterviewDashboard';
 import { LandingPage } from './components/LandingPage';
 import { ProfilePage } from './components/ProfilePage';
-import { getCurrentSessionUser } from './services/auth';
+import { getCurrentSessionUser, hydrateCurrentSessionUser, logoutUser } from './services/auth';
 import type { UserProfile } from './types/auth';
 import type { ResumeScanResult } from './types/interview';
 
@@ -13,6 +13,7 @@ type AuthenticatedView = 'dashboard' | 'profile';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => getCurrentSessionUser());
+  const [isHydratingSession, setIsHydratingSession] = useState(true);
   const [guestView, setGuestView] = useState<GuestView>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authenticatedView, setAuthenticatedView] = useState<AuthenticatedView>('dashboard');
@@ -23,9 +24,24 @@ export function App() {
     setAuthenticatedView('dashboard');
   }
 
-  function handleLogout() {
+  useEffect(() => {
+    async function hydrateSession() {
+      const user = await hydrateCurrentSessionUser();
+      setCurrentUser(user);
+      setIsHydratingSession(false);
+    }
+
+    hydrateSession();
+  }, []);
+
+  async function handleLogout() {
+    await logoutUser();
     setCurrentUser(null);
     setAuthenticatedView('dashboard');
+  }
+
+  if (isHydratingSession) {
+    return null;
   }
 
   if (currentUser) {

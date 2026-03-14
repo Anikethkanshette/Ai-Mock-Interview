@@ -61,22 +61,36 @@ export function evaluateAnswerWithEvaluatorAgent(question: InterviewQuestion, an
   const matchedTopics = question.expectedTopics.filter((topic) => cleanedAnswer.includes(topic.toLowerCase())).length;
   const coverageRatio = question.expectedTopics.length > 0 ? matchedTopics / question.expectedTopics.length : 0;
 
-  const baselineScore = wordCount >= 25 ? 4 : wordCount >= 12 ? 3 : 2;
-  const depthBonus = wordCount > 110 ? 2 : wordCount > 60 ? 1 : 0;
-  const structureBonus = /because|therefore|trade-?off|result|impact|metric/.test(cleanedAnswer) ? 1 : 0;
-  const baseScore = baselineScore + Math.round(coverageRatio * 4) + depthBonus + structureBonus;
-  const normalizedScore = Math.max(1, Math.min(10, baseScore));
+  const hasStructureCue = /because|therefore|trade-?off|result|impact|metric|so that/.test(cleanedAnswer);
+  const mentionsProcess = /approach|step|pipeline|flow|debug|investigate|design/.test(cleanedAnswer);
+  const mentionsImpact = /impact|result|metric|latency|throughput|cost|conversion|reliab|uptime|error rate/.test(
+    cleanedAnswer
+  );
 
-  const technicalAccuracy = Math.max(1, Math.min(10, Math.round(coverageRatio * 8) + 2));
-  const communication = Math.max(1, Math.min(10, (wordCount > 60 ? 8 : wordCount > 30 ? 7 : 5) + structureBonus));
-  const problemSolving = Math.max(
+  const baselineScore = wordCount >= 40 ? 4 : wordCount >= 20 ? 3 : 2;
+  const depthBonus = wordCount > 140 ? 2 : wordCount > 80 ? 1 : 0;
+  const structureBonus = hasStructureCue ? 1 : 0;
+  const processBonus = mentionsProcess ? 1 : 0;
+  const impactBonus = mentionsImpact ? 1 : 0;
+
+  const rawScore =
+    baselineScore +
+    Math.round(coverageRatio * 4) +
+    depthBonus +
+    structureBonus +
+    processBonus +
+    impactBonus;
+
+  const difficultyAdjustment = question.difficulty >= 4 ? -1 : question.difficulty <= 2 ? 1 : 0;
+  const normalizedScore = Math.max(1, Math.min(10, rawScore + difficultyAdjustment));
+
+  const technicalAccuracy = Math.max(1, Math.min(10, Math.round(coverageRatio * 8) + (question.difficulty >= 4 ? 1 : 0)));
+  const communication = Math.max(
     1,
-    Math.min(10, /approach|step|debug|investigate|solution|optimi[sz]e/.test(cleanedAnswer) ? 8 : 5)
+    Math.min(10, (wordCount > 80 ? 8 : wordCount > 40 ? 7 : 5) + (hasStructureCue ? 1 : 0))
   );
-  const impactOrientation = Math.max(
-    1,
-    Math.min(10, /impact|result|metric|latency|throughput|cost|conversion/.test(cleanedAnswer) ? 8 : 5)
-  );
+  const problemSolving = Math.max(1, Math.min(10, (mentionsProcess ? 8 : 5) + (question.difficulty >= 4 ? 1 : 0)));
+  const impactOrientation = Math.max(1, Math.min(10, (mentionsImpact ? 8 : 5)));
 
   const scoreBreakdown: ScoreBreakdown = {
     technicalAccuracy,
@@ -88,27 +102,41 @@ export function evaluateAnswerWithEvaluatorAgent(question: InterviewQuestion, an
 
   const missingTopics = question.expectedTopics.filter((topic) => !cleanedAnswer.includes(topic.toLowerCase()));
 
+  const feedbackParts: string[] = [];
+
   if (normalizedScore >= 8) {
-    return {
-      score: normalizedScore,
-      feedback: 'Strong answer with clear structure and good technical depth.',
-      scoreBreakdown,
-      missingTopics
-    };
+    feedbackParts.push('Strong answer with clear structure and good technical depth.');
+  } else if (normalizedScore >= 5) {
+    feedbackParts.push('Decent direction. Add more concrete implementation details and measurable outcomes.');
+  } else {
+    feedbackParts.push('Answer feels shallow. Include architecture decisions, trade-offs, and specific impact.');
   }
 
-  if (normalizedScore >= 5) {
-    return {
-      score: normalizedScore,
-      feedback: 'Decent direction. Add more concrete implementation details and measurable outcomes.',
-      scoreBreakdown,
-      missingTopics
-    };
+  if (technicalAccuracy < 7) {
+    feedbackParts.push('Cover more of the core technical concepts the question expects.');
   }
+
+  if (communication < 7) {
+    feedbackParts.push('Use a clearer story: context → approach → decision → result.');
+  }
+
+  if (problemSolving < 7) {
+    feedbackParts.push('Talk through alternatives, constraints, and why you chose this solution.');
+  }
+
+  if (impactOrientation < 7) {
+    feedbackParts.push('Mention concrete impact using numbers when possible (latency, cost, reliability, etc.).');
+  }
+
+  if (missingTopics.length > 0) {
+    feedbackParts.push(`You missed: ${missingTopics.slice(0, 4).join(', ')}.`);
+  }
+
+  const feedback = feedbackParts.join(' ');
 
   return {
     score: normalizedScore,
-    feedback: 'Answer feels shallow. Include architecture decisions, trade-offs, and specific impact.',
+    feedback,
     scoreBreakdown,
     missingTopics
   };
@@ -175,16 +203,44 @@ export function summarizeCoachingFromEvidence(turns: InterviewSession['turns']):
       improvementPlan: []
     };
   }
+  type AggregatedObservation = EvidenceBackedObservation & { count: number };
 
-  const deduped = new Map<string, EvidenceBackedObservation>();
+  const deduped = new Map<string, AggregatedObservation>();
 
   for (const observation of observations) {
-    if (!deduped.has(observation.area)) {
-      deduped.set(observation.area, observation);
+    const existing = deduped.get(observation.area);
+
+    if (!existing) {
+      deduped.set(observation.area, { ...observation, count: 1 });
+    } else {
+      const priorityOrder: Record<EvidenceBackedObservation['priority'], number> = { high: 0, medium: 1, low: 2 };
+      const nextPriority =
+        priorityOrder[observation.priority] < priorityOrder[existing.priority]
+          ? observation.priority
+          : existing.priority;
+
+      deduped.set(observation.area, {
+        area: observation.area,
+        evidence: existing.evidence,
+        recommendation: observation.recommendation,
+        priority: nextPriority,
+        count: existing.count + 1
+      });
     }
   }
 
-  const observedLacking = Array.from(deduped.values()).slice(0, 4);
+  const observedLacking = Array.from(deduped.values())
+    .map((item) => ({
+      area: item.area,
+      evidence:
+        item.count > 1
+          ? `${item.evidence} (pattern seen in ${item.count} answers)`
+          : item.evidence,
+      recommendation: item.recommendation,
+      priority: item.priority
+    }))
+    .slice(0, 4);
+
   const improvementPlan = observedLacking
     .map((item) => ({
       ...item,

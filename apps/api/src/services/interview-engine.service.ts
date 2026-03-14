@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { buildInterviewQuestionSet } from './question-bank.service.js';
 import { extractFactsFromText, scanResumeContent } from './resume-scanner.service.js';
 import { buildCompanyInterviewIntelligence } from './company-intelligence.service.js';
+import { generateGeminiFeedbackForAnswer, generateGeminiSummaryForSession } from './gemini.service.js';
 import {
   createAgentState,
   evaluateAnswerWithEvaluatorAgent,
@@ -442,17 +443,17 @@ export async function startInterview(payload: StartInterviewRequest): Promise<{
   };
 }
 
-export function submitAnswer(input: {
+export async function submitAnswer(input: {
   sessionId: string;
   answer: string;
-}): {
+}): Promise<{
   score: number;
   feedback: string;
   scoreBreakdown: ScoreBreakdown;
   nextQuestion?: InterviewQuestion;
   completed: boolean;
   summary?: InterviewResult;
-} {
+}> {
   const session = sessions.get(input.sessionId);
 
   if (!session) {
@@ -470,6 +471,21 @@ export function submitAnswer(input: {
   }
 
   const evaluation = evaluateAnswerWithEvaluatorAgent(currentTurn.question, input.answer);
+
+  try {
+    const enhancedFeedback = await generateGeminiFeedbackForAnswer({
+      question: currentTurn.question,
+      answer: input.answer,
+      scoreBreakdown: evaluation.scoreBreakdown,
+      missingTopics: evaluation.missingTopics
+    });
+
+    if (enhancedFeedback) {
+      evaluation.feedback = enhancedFeedback;
+    }
+  } catch (error) {
+    console.error('Gemini feedback generation failed:', error);
+  }
 
   pushAgentDecision(
     session,
@@ -540,6 +556,27 @@ export function submitAnswer(input: {
     const feedbackSummary = summarizeFeedback(session);
     const evidenceSummary = summarizeCoachingFromEvidence(session.turns);
 
+    const baseResult: InterviewResult = {
+      averageScore,
+      totalQuestions: session.turns.length,
+      answeredQuestions: session.turns.filter((turn) => Boolean(turn.answer)).length,
+      completed: true,
+      strengths: feedbackSummary.strengths,
+      improvements: feedbackSummary.improvements,
+      observedLacking: evidenceSummary.observedLacking,
+      improvementPlan: evidenceSummary.improvementPlan
+    };
+
+    try {
+      const llmSummary = await generateGeminiSummaryForSession({ session, result: baseResult });
+
+      if (llmSummary) {
+        baseResult.llmSummary = llmSummary;
+      }
+    } catch (error) {
+      console.error('Gemini session summary generation failed:', error);
+    }
+
     pushAgentDecision(
       session,
       'coach-agent',
@@ -561,16 +598,7 @@ export function submitAnswer(input: {
       feedback: evaluation.feedback,
       scoreBreakdown: evaluation.scoreBreakdown,
       completed: true,
-      summary: {
-        averageScore,
-        totalQuestions: session.turns.length,
-        answeredQuestions: session.turns.filter((turn) => Boolean(turn.answer)).length,
-        completed: true,
-        strengths: feedbackSummary.strengths,
-        improvements: feedbackSummary.improvements,
-        observedLacking: evidenceSummary.observedLacking,
-        improvementPlan: evidenceSummary.improvementPlan
-      }
+      summary: baseResult
     };
   }
 

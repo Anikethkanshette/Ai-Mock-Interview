@@ -1,116 +1,133 @@
 import type { LoginPayload, ProfileUpdatePayload, RegisterPayload, UserProfile } from '../types/auth';
 
-const USERS_KEY = 'aimi_users';
-const SESSION_KEY = 'aimi_session';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+const SESSION_KEY = 'agentic_intervier_session';
 
-interface StoredUser extends UserProfile {
-  password: string;
-}
+type SessionState = {
+  token: string;
+  user: UserProfile;
+};
 
-function readUsers(): StoredUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (!raw) {
-      return [];
-    }
-
-    return JSON.parse(raw) as StoredUser[];
-  } catch {
-    return [];
-  }
-}
-
-function writeUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function persistSession(user: UserProfile) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-}
-
-export function getCurrentSessionUser(): UserProfile | null {
+function readSessionState(): SessionState | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as UserProfile) : null;
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as SessionState;
   } catch {
     return null;
   }
 }
 
-export async function registerUser(payload: RegisterPayload): Promise<UserProfile> {
-  const users = readUsers();
-  const email = payload.email.toLowerCase().trim();
-
-  if (users.some((user) => user.email.toLowerCase() === email)) {
-    throw new Error('User with this email already exists.');
-  }
-
-  const user: StoredUser = {
-    id: crypto.randomUUID(),
-    fullName: payload.fullName.trim(),
-    email,
-    password: payload.password,
-    createdAt: new Date().toISOString(),
-    headline: 'Software Engineer',
-    targetRole: 'backend',
-    bio: '',
-    primarySkills: []
-  };
-
-  users.push(user);
-  writeUsers(users);
-
-  const { password: _password, ...profile } = user;
-  persistSession(profile);
-  return profile;
+function writeSessionState(state: SessionState) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(state));
 }
 
-export async function loginUser(payload: LoginPayload): Promise<UserProfile> {
-  const users = readUsers();
-  const email = payload.email.toLowerCase().trim();
-  const matchedUser = users.find((user) => user.email.toLowerCase() === email);
-
-  if (!matchedUser || matchedUser.password !== payload.password) {
-    throw new Error('Invalid email or password.');
-  }
-
-  const { password: _password, ...profile } = matchedUser;
-  persistSession(profile);
-  return profile;
-}
-
-export function logoutUser() {
+function clearSessionState() {
   localStorage.removeItem(SESSION_KEY);
 }
 
-export function updateCurrentUserProfile(payload: ProfileUpdatePayload): UserProfile {
-  const current = getCurrentSessionUser();
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers || {})
+    }
+  });
 
-  if (!current) {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? 'Request failed');
+  }
+
+  return data as T;
+}
+
+function authHeader(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`
+  };
+}
+
+export function getCurrentSessionUser(): UserProfile | null {
+  return readSessionState()?.user ?? null;
+}
+
+export async function hydrateCurrentSessionUser(): Promise<UserProfile | null> {
+  const state = readSessionState();
+
+  if (!state?.token) {
+    return null;
+  }
+
+  try {
+    const response = await request<{ user: UserProfile }>('/auth/me', {
+      method: 'GET',
+      headers: authHeader(state.token)
+    });
+
+    writeSessionState({ token: state.token, user: response.user });
+    return response.user;
+  } catch {
+    clearSessionState();
+    return null;
+  }
+}
+
+export async function registerUser(payload: RegisterPayload): Promise<UserProfile> {
+  const response = await request<{ token: string; user: UserProfile }>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+  writeSessionState({ token: response.token, user: response.user });
+  return response.user;
+}
+
+export async function loginUser(payload: LoginPayload): Promise<UserProfile> {
+  const response = await request<{ token: string; user: UserProfile }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+  writeSessionState({ token: response.token, user: response.user });
+  return response.user;
+}
+
+export async function updateCurrentUserProfile(payload: ProfileUpdatePayload): Promise<UserProfile> {
+  const state = readSessionState();
+
+  if (!state?.token) {
     throw new Error('No active session user found.');
   }
 
-  const users = readUsers();
-  const index = users.findIndex((user) => user.id === current.id);
+  const response = await request<{ user: UserProfile }>('/auth/profile', {
+    method: 'PATCH',
+    headers: authHeader(state.token),
+    body: JSON.stringify(payload)
+  });
 
-  if (index < 0) {
-    throw new Error('User record not found.');
+  writeSessionState({ token: state.token, user: response.user });
+  return response.user;
+}
+
+export async function logoutUser() {
+  const state = readSessionState();
+
+  if (state?.token) {
+    try {
+      await request<{ success: boolean }>('/auth/logout', {
+        method: 'POST',
+        headers: authHeader(state.token)
+      });
+    } catch {
+      // Ignore logout network errors and clear session locally.
+    }
   }
 
-  const updated: StoredUser = {
-    ...users[index],
-    fullName: payload.fullName.trim(),
-    headline: payload.headline?.trim() || undefined,
-    targetRole: payload.targetRole?.trim() || undefined,
-    yearsExperience: typeof payload.yearsExperience === 'number' ? payload.yearsExperience : undefined,
-    bio: payload.bio?.trim() || undefined,
-    primarySkills: payload.primarySkills?.map((skill) => skill.trim()).filter(Boolean) ?? []
-  };
-
-  users[index] = updated;
-  writeUsers(users);
-
-  const { password: _password, ...profile } = updated;
-  persistSession(profile);
-  return profile;
+  clearSessionState();
 }
